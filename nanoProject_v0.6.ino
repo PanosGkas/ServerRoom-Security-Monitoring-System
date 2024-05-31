@@ -22,11 +22,13 @@ MFRC522 mfrc522(SS_PIN, RST_PIN); //object for RFID card
 Servo servo; //object for servo
 DHT tempSensor(tempSensorPin, DHTTYPE);    //object for humidity temprature sensor
 
-char ssid[] = "WIFI-Name";
+//wifi variable declaration
+char ssid[] = "WIFI-Name"; //change wifi credentials
 char pass[] = "WIFI-Pass";
 int keyIndex = 0;
 int status = WL_IDLE_STATUS;
 
+//sensor variable declaration
 int motionSensorInput = LOW;
 int smokeSensorValue = 0;
 int attemps = 0;
@@ -38,7 +40,6 @@ void setup() {
   servo.attach(servoPin);
   servo.write(0);
   tempSensor.begin();
-
   pinMode(redLedPin, OUTPUT);
   pinMode(blueLedPin, OUTPUT); 
   pinMode(greenLedPin, OUTPUT);
@@ -51,52 +52,37 @@ void setup() {
   delay(4);
   mfrc522.PCD_DumpVersionToSerial();
   Serial.println("Approximate your card to the reader...");
-  Serial.println();
 
-//  // check for the WiFi module:
-//   if (WiFi.status() == WL_NO_MODULE) {
-//     Serial.println("Communication with WiFi module failed!");
-//     // don't continue
-//     while (true);
-//   }
+  //WiFi Connection
+  if (WiFi.status() == WL_NO_MODULE) { // check for the WiFi module
+    Serial.println("Communication with WiFi module failed!");
+    while (true); // don't continue
+  }
+  String fv = WiFi.firmwareVersion();
+  if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
+    Serial.println("Please upgrade the firmware");
+  }
+  while (status != WL_CONNECTED) {  // attempt to connect to WiFi network
+    Serial.print("Attempting to connect to Network named: ");
+    Serial.println(ssid);
 
-//   String fv = WiFi.firmwareVersion();
-//   if (fv < WIFI_FIRMWARE_LATEST_VERSION) {
-//     Serial.println("Please upgrade the firmware");
-//   }
-
-//   // by default the local IP address will be 192.168.4.1
-//   // you can override it with the following:
-//   // WiFi.config(IPAddress(10, 0, 0, 1));
-
-//   // print the network name (SSID);
-//   Serial.print("Creating access point named: ");
-//   Serial.println(ssid);
-
-//   // Create open network. Change this line if you want to create an WEP network:
-//   status = WiFi.beginAP(ssid, pass);
-//   if (status != WL_AP_LISTENING) {
-//     Serial.println("Creating access point failed");
-//     // don't continue
-//     while (true);
-//   }
-
-//   // wait 10 seconds for connection:
-//   delay(10000);
-
-//   // you're connected now, so print out the status
-//   printWiFiStatus();
+    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+    status = WiFi.begin(ssid, pass);
+    delay(10000);
+  }
+  printWifiStatus();// print status of WiFi
+  Serial.println("--------------------Server Room Security System Initialize--------------------------");
 }
 
-  void loop(){
-    checkMotion();
-    checkSmoke();
-    checkTemp();
-    checkRFID();
-  }
+void loop() {
+  checkMotion();
+  checkSmoke();
+  checkTemp();
+  checkRFID();
+}
 
-//------------------------------------------------------//
-// Monitor Functions
+
+// ---------------------------------------Monitor Functions--------------------------------------------------------//
 
 //Motion detection
 void checkMotion(){
@@ -196,8 +182,7 @@ void checkRFID(){
   //mfrc522.PICC_DumpToSerial(&(mfrc522.uid)); if we want to see tag binary
 } 
 
-//----------------------------------------------//
-//Routines
+//--------------------------------------------------Routines-------------------------------------------------//
 
 //function for open door routine
 void openDoorRoutine(){
@@ -253,20 +238,19 @@ void openAirCondition(){
 void closeAirCondition(){
   ACStatus = false;
   analogWrite(blueLedPin, 0);
-  // digitalWrite(buzzerPin, HIGH);
-  // delay(1000);
-  // digitalWrite(buzzerPin, LOW);
 }
 
+//wifi status
+void printWifiStatus() {
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP Address: ");
+  Serial.println(ip);
 
-// void printWiFiStatus(){
-//    // print the SSID of the network you're attached to:
-//   Serial.print("SSID: ");
-//   Serial.println(WiFi.SSID());
-
-//   // print your WiFi shield's IP address:
-//   //IPAddress ip = WiFi.localIP();
-//   WiFi.config(IPAddress(192, 168, 1, 100));
-//   Serial.print("IP Address: ");
-//  //Serial.println(ip);
-// }
+  // print the received signal strength:
+  long rssi = WiFi.RSSI();
+  Serial.print("signal strength (RSSI):");
+  Serial.print(rssi);
+  Serial.println(" dBm");
+}
