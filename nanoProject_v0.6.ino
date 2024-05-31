@@ -30,7 +30,7 @@ int keyIndex = 0;
 int status = WL_IDLE_STATUS;
 
 // thingsboard variables
-char token[] = "ThingsBoard-Token"; //token of user's thingsboard device. change for connection to other account
+char token[] = "ThingsBoard-Token"; //token of user's thingsboard device. change forconnection to other account
 char thingsboardServer[] = "demo.thingsboard.io";
 
 // Initialize underlying client, used to establish a connection
@@ -41,6 +41,7 @@ ThingsBoard tb(wifiClient);
 int motionSensorInput = LOW;
 int smokeSensorValue = 0;
 int attemps = 0;
+int entrances = 0;
 bool ACStatus = false;
 
 void setup() {
@@ -89,47 +90,18 @@ void loop() {
     reconnect();
   }
 
-  checkMotion();
-  checkSmoke();
   checkTemp();
+  checkSmoke();
   checkRFID();
-
+  if(entrances > 2){ // for presentation purposes we consider that after 2 successfull entrances the time is after working hours
+    checkMotion();
+  }
+    
   tb.loop();
 }
 
 
 // ---------------------------------------Monitor Functions--------------------------------------------------//
-
-//Motion detection
-void checkMotion(){
-  motionSensorInput = digitalRead(motionSensorPin);
-  if ( motionSensorInput == HIGH ){
-    Serial.println("Motion detected!!!");
-    tb.sendTelemetryString("Motion", "Motion detected!!!");
-    soundIntrusionAlarm();
-  } 
-  else{
-    Serial.println("All is quiet...");
-    tb.sendTelemetryString("Motion", "All is quiet...");
-  }
-}
-
-//Smoke detection
-void checkSmoke(){
-  smokeSensorValue = analogRead(smokeSensorPin);
-  Serial.print("Smoke Sensor value : ");
-  if(smokeSensorValue > 680){
-    Serial.print(smokeSensorValue);
-    tb.sendTelemetryInt("smoke value", smokeSensorValue);
-    Serial.println(" | Smoke Detected!!!");
-    soundFireAlarm();
-  }
-  else{
-    Serial.println(smokeSensorValue);
-    tb.sendTelemetryInt("smoke value", smokeSensorValue);
-  }
-  delay(2000);
-}
 
 //Temprature and Humidity Reading
 void checkTemp() {
@@ -162,9 +134,25 @@ void checkTemp() {
   }
 }
 
+//Smoke detection
+void checkSmoke(){
+  smokeSensorValue = analogRead(smokeSensorPin);
+  Serial.print("Smoke Sensor value : ");
+  if(smokeSensorValue > 680){  //change smoke value relative to room atmosphere
+    Serial.print(smokeSensorValue);
+    tb.sendTelemetryInt("smoke value", smokeSensorValue);
+    Serial.println(" | Smoke Detected!!!");
+    soundFireAlarm();
+  }
+  else{
+    Serial.println(smokeSensorValue);
+    tb.sendTelemetryInt("smoke value", smokeSensorValue);
+  }
+  delay(2000);
+}
+
 //RFID Access check
 void checkRFID(){
-
   // Look for new cards
   if ( ! mfrc522.PICC_IsNewCardPresent()){
     return;
@@ -188,14 +176,26 @@ void checkRFID(){
   Serial.println();
   Serial.print("Message : ");
   content.toUpperCase();
-  if (content.substring(1) == "23 5A F8 33"){ //blue tag's UID
+  if (content.substring(1) == "EE EE 13 58"){ //work pass UID
     Serial.println("Access Granted");
+    Serial.println("User-1 has entered the Server Room.");
+    tb.sendTelemetryString("Name", "User-1");
     openDoorRoutine();
+    entrances++;
     attemps = 0;
   }
- else{
+  else if(content.substring(1) == "23 5A F8 33"){// blue tag's UID
+    Serial.println("Access Granted");
+    Serial.println("User-2 has entered the Server Room.");
+    tb.sendTelemetryString("Name", "User-2");
+    openDoorRoutine();
+    entrances++;
+    attemps = 0;
+  }
+  else{
     Serial.println("Access denied");
-    tb.sendTelemetryString("door", "Access denied!!");
+    tb.sendTelemetryString("Name", "Unknown Subject");
+    tb.sendTelemetryString("door", "Access denied");
     attemps++;
     if(attemps < 3){
       analogWrite(redLedPin, 255);
@@ -204,30 +204,43 @@ void checkRFID(){
     }
     else{
       soundIntrusionAlarm();
+      attemps = 0;
     }    
-
   }
-
   //mfrc522.PICC_DumpToSerial(&(mfrc522.uid)); if we want to see tag binary
 } 
 
+//Motion detection
+void checkMotion(){
+  motionSensorInput = digitalRead(motionSensorPin);
+  if ( motionSensorInput == HIGH ){
+    Serial.println("Motion detected!!!");
+    tb.sendTelemetryString("Motion", "Motion detected!!!");
+    soundIntrusionAlarm();
+  } 
+  else{
+    Serial.println("All is quiet...");
+    tb.sendTelemetryString("Motion", "All is quiet...");
+  }
+}
+
 //--------------------------------------------------Routines-------------------------------------------------//
 
-//function for open door routine
-void openDoorRoutine(){
-  analogWrite(greenLedPin, 255); 
+//open Air Condition routine
+void openAirCondition(){
+  ACStatus = true;  
+  analogWrite(blueLedPin, 256);
+  tb.sendTelemetryString("AC", "ON");
   digitalWrite(buzzerPin, HIGH);
-  delay(500); 
-  digitalWrite(buzzerPin, LOW);
-  servo.write(90);
-  String door = String("OPEN");
-  tb.sendTelemetryString("door", "OPEN");
-  delay(5000);
-  servo.write(0);
-  analogWrite(greenLedPin, 0);
-  door = String("CLOSED");
-  tb.sendTelemetryString("door", "CLOSED");
   delay(1000);
+  digitalWrite(buzzerPin, LOW);
+}
+
+//close Air Condition routine
+void closeAirCondition(){
+  ACStatus = false;
+  analogWrite(blueLedPin, 0);
+  tb.sendTelemetryString("AC", "OFF");
 }
 
 //smoke detected routine
@@ -244,6 +257,23 @@ void soundFireAlarm(){
   }
 }
 
+//function for open door routine
+void openDoorRoutine(){
+  analogWrite(greenLedPin, 255); 
+  digitalWrite(buzzerPin, HIGH);
+  delay(500); 
+  digitalWrite(buzzerPin, LOW);
+  servo.write(90);
+  String door = String("OPEN"); // ?????
+  tb.sendTelemetryString("door", "OPEN");
+  delay(5000);
+  servo.write(0);
+  analogWrite(greenLedPin, 0);
+  door = String("CLOSED");  // ?????
+  tb.sendTelemetryString("door", "CLOSED");
+  delay(1000);
+}
+
 //motion detected routine
 void soundIntrusionAlarm(){
   for(int i=0;i<10;i++){ //10 replays for presentation purposes
@@ -258,20 +288,6 @@ void soundIntrusionAlarm(){
   }
 }
 
-//open Air Condition routine
-void openAirCondition(){
-  ACStatus = true;  
-  analogWrite(blueLedPin, 256);
-  digitalWrite(buzzerPin, HIGH);
-  delay(1000);
-  digitalWrite(buzzerPin, LOW);
-}
-
-//close Air Condition routine
-void closeAirCondition(){
-  ACStatus = false;
-  analogWrite(blueLedPin, 0);
-}
 //---------------------------------Connection to WiFi and ThingsBoard--------------------------------------------------//
 
 //wifi status
