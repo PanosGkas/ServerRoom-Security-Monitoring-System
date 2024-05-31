@@ -48,7 +48,7 @@ void setup() {
   //initialize serial and pin headers
   Serial.begin(9600);
   servo.attach(servoPin);
-  servo.write(10);       //initiate servo angle to 0 degrees - door closed
+  servo.write(10);       //initiate servo angle to 10 degrees - door closed
   tempSensor.begin();  //initiate DHT sernsor reading
   pinMode(redLedPin, OUTPUT);
   pinMode(blueLedPin, OUTPUT); 
@@ -138,7 +138,7 @@ void checkTemp() {
 void checkSmoke(){
   smokeSensorValue = analogRead(smokeSensorPin);
   Serial.print("Smoke Sensor value : ");
-  if(smokeSensorValue > 800){  //change smoke value relative to room atmosphere
+  if(smokeSensorValue > 650){  //change smoke value relative to room atmosphere
     Serial.print(smokeSensorValue);
     tb.sendTelemetryInt("smoke value", smokeSensorValue);
     tb.sendTelemetryString("smoke", "Smoke detected");
