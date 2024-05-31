@@ -9,18 +9,21 @@
 #define greenLedPin 7
 #define tempSensorPin 8 
 #define motionSensorPin 9
+#define servoPin 10
+#define DHTTYPE DHT11
 
 //creation of objects
 Servo servo;
-//DHT tempSensor;   
+DHT tempSensor(tempSensorPin, DHTTYPE);   
 int motionSensorInput = LOW;
 int smokeSensorValue;
 
 void setup() {
   //initialize pin headers
   Serial.begin(9600);
-  servo.attach(2);
+  servo.attach(10);
   servo.write(0);
+  tempSensor.begin();
   pinMode(redLedPin, OUTPUT);
   pinMode(blueLedPin, OUTPUT);
   pinMode(greenLedPin, OUTPUT);
@@ -30,20 +33,40 @@ void setup() {
   }
 
   void loop(){
-    checkMotion();
+    //checkMotion();
     //soundBuzzer();
     //servoMovement();
     //checkSmoke();
-    //checkTemp();
+    checkTemp();
+    //servoMovement();
+    //testLED();
   }
 
-//function for servo movement
-void servoMovement(){
-  servo.write(90);
-  delay(2000);
-  servo.write(0);
-  delay(1000);
+
+//function to test cathode LEDs
+
+void testLED(){
+analogWrite(blueLedPin, 256);
+delay(2000);
+analogWrite(blueLedPin, 0);
+delay(1000);
+analogWrite(redLedPin, 256);
+delay(2000);
+analogWrite(redLedPin, 0);
+delay(1000);
+analogWrite(greenLedPin, 256);
+delay(2000);
+analogWrite(greenLedPin, 0);
+delay(1000);
+
 }
+//function to open door
+void openDoor(){
+  servo.write(90);
+  delay(5000);
+  servo.write(0);
+}
+
 //function for motion detection with buzzer alarm, blue LED indicator and serial print
 void checkMotion(){
   motionSensorInput = digitalRead(motionSensorPin);
@@ -93,27 +116,27 @@ void soundBuzzer(){
 
 //!!!NOT TESTED!!!
 //function for temprature detection above 50C with buzzer alarm, green LED indicator and Serial print 
-// void checkTemp() {
-//   int readData = tempSensor.read11(tempSensorPin);
-//   float temp = tempSensor.temperature;        // Read temperature
-//   float hum = tempSensor.humidity;           // Read humidity
+void checkTemp() {
+  int readData = tempSensor.read(tempSensorPin);
+  float temp = tempSensor.readTemperature();        // Read temperature
+  float hum = tempSensor.readHumidity();           // Read humidity
 
-//   Serial.print("Temperature = ");
-//   Serial.print(temp);
-//   Serial.print("°C | ");
-//   Serial.print("Humidity = ");
-//   Serial.print(hum);
-//   Serial.println("% ");
-//   Serial.println("");
+  Serial.print("Temperature = ");
+  Serial.print(temp);
+  Serial.print("°C | ");
+  Serial.print("Humidity = ");
+  Serial.print(hum);
+  Serial.println("% ");
+  Serial.println("");
 
-//   if(temp > 50){
-//     soundBuzzer();
-//     //analogWrite(greenLedPin, 256);
-//   }
-//   else{
-//     stopBuzzer();
-//     //analogWrite(greenLedPin, 0);
-//   }
+  if(temp > 50){
+    soundBuzzer();
+    analogWrite(greenLedPin, 256);
+  }
+  else{
+    stopBuzzer();
+    analogWrite(greenLedPin, 0);
+  }
 
-//   delay(2000); // wait two seconds
-// }
+  delay(2000); // wait two seconds
+}
