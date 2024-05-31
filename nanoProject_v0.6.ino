@@ -30,7 +30,7 @@ int keyIndex = 0;
 int status = WL_IDLE_STATUS;
 
 // thingsboard variables
-char token[] = "ThingsBoard-Token"; //token of user's thingsboard device. change forconnection to other account
+char token[] = "ThingsBoard-Token"; //token of user's thingsboard device. change for connection to other account
 char thingsboardServer[] = "demo.thingsboard.io";
 
 // Initialize underlying client, used to establish a connection
@@ -48,7 +48,7 @@ void setup() {
   //initialize serial and pin headers
   Serial.begin(9600);
   servo.attach(servoPin);
-  servo.write(0);       //initiate servo angle to 0 degrees - door closed
+  servo.write(10);       //initiate servo angle to 0 degrees - door closed
   tempSensor.begin();  //initiate DHT sernsor reading
   pinMode(redLedPin, OUTPUT);
   pinMode(blueLedPin, OUTPUT); 
@@ -93,7 +93,7 @@ void loop() {
   checkTemp();
   checkSmoke();
   checkRFID();
-  if(entrances > 2){ // for presentation purposes we consider that after 2 successfull entrances the time is after working hours
+  if(entrances > 2){ // for presentation purposes we consider that after 3 successfull entrances the time is after working hours
     checkMotion();
   }
     
@@ -124,10 +124,10 @@ void checkTemp() {
   tb.sendTelemetryFloat("temperature", temp);
   tb.sendTelemetryFloat("humidity", hum);
 
-  if(temp > 22 && ACStatus == false){
+  if(temp > 30 && ACStatus == false){
     openAirCondition();
   }
-  else if (temp <= 22 && ACStatus == true){
+  else if (temp <= 30 && ACStatus == true){
     closeAirCondition();
   }
   else{    
@@ -138,11 +138,13 @@ void checkTemp() {
 void checkSmoke(){
   smokeSensorValue = analogRead(smokeSensorPin);
   Serial.print("Smoke Sensor value : ");
-  if(smokeSensorValue > 680){  //change smoke value relative to room atmosphere
+  if(smokeSensorValue > 800){  //change smoke value relative to room atmosphere
     Serial.print(smokeSensorValue);
     tb.sendTelemetryInt("smoke value", smokeSensorValue);
+    tb.sendTelemetryString("smoke", "Smoke detected");
     Serial.println(" | Smoke Detected!!!");
     soundFireAlarm();
+    tb.sendTelemetryString("smoke", "No smoke detected");
   }
   else{
     Serial.println(smokeSensorValue);
@@ -180,22 +182,28 @@ void checkRFID(){
     Serial.println("Access Granted");
     Serial.println("User-1 has entered the Server Room.");
     tb.sendTelemetryString("Name", "User-1");
+    tb.sendTelemetryString("attemptedEntryName", "User-1");
     openDoorRoutine();
     entrances++;
     attemps = 0;
+    tb.sendTelemetryString("Name", "-");
+
   }
   else if(content.substring(1) == "23 5A F8 33"){// blue tag's UID
     Serial.println("Access Granted");
     Serial.println("User-2 has entered the Server Room.");
     tb.sendTelemetryString("Name", "User-2");
+    tb.sendTelemetryString("attemptedEntryName", "User-2");
     openDoorRoutine();
     entrances++;
     attemps = 0;
+    tb.sendTelemetryString("Name", "-");
   }
   else{
     Serial.println("Access denied");
     tb.sendTelemetryString("Name", "Unknown Subject");
-    tb.sendTelemetryString("door", "Access denied");
+    //tb.sendTelemetryString("door", "Access denied");
+    tb.sendTelemetryString("attemptedEntryName", "Unknown");
     attemps++;
     if(attemps < 3){
       analogWrite(redLedPin, 255);
@@ -205,7 +213,8 @@ void checkRFID(){
     else{
       soundIntrusionAlarm();
       attemps = 0;
-    }    
+    } 
+    tb.sendTelemetryString("Name", "-");   
   }
   //mfrc522.PICC_DumpToSerial(&(mfrc522.uid)); if we want to see tag binary
 } 
@@ -217,10 +226,10 @@ void checkMotion(){
     Serial.println("Motion detected!!!");
     tb.sendTelemetryString("Motion", "Motion detected!!!");
     soundIntrusionAlarm();
+    tb.sendTelemetryString("Motion", "All is quiet...");
   } 
   else{
     Serial.println("All is quiet...");
-    tb.sendTelemetryString("Motion", "All is quiet...");
   }
 }
 
@@ -263,11 +272,11 @@ void openDoorRoutine(){
   digitalWrite(buzzerPin, HIGH);
   delay(500); 
   digitalWrite(buzzerPin, LOW);
-  servo.write(90);
+  servo.write(100);
   String door = String("OPEN"); // ?????
   tb.sendTelemetryString("door", "OPEN");
   delay(5000);
-  servo.write(0);
+  servo.write(10);
   analogWrite(greenLedPin, 0);
   door = String("CLOSED");  // ?????
   tb.sendTelemetryString("door", "CLOSED");
