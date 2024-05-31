@@ -30,7 +30,7 @@ void setup() {
   }
 
   void loop(){
-    //checkMotion();
+    checkMotion();
     //soundBuzzer();
     //servoMovement();
     //checkSmoke();
@@ -73,7 +73,7 @@ void checkSmoke(){
   Serial.println(smokeSensorValue);
   stopBuzzer();
   //analogWrite(redLedPin, 0);
-  if(smokeSensorValue > 630){
+  if(smokeSensorValue > 680){
     Serial.print(" | Smoke Detected!!!");
     soundBuzzer();
     //analogWrite(redLedPin, 256);
